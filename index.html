@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>守望先锋英雄匹配问卷 · Product Ready</title>
+  <meta name="description" content="基于真实英雄数据与多维评分，推荐更适合你的守望先锋定位与英雄池。"/>
+  <style>
+    :root{--bg:#0a1022;--card:#121d42;--line:rgba(255,255,255,.14);--text:#ecf1ff;--muted:#a9bbff;--pri:#ff9e4a;--sec:#6ea8fe;--ok:#7ce38b}
+    *{box-sizing:border-box} body{margin:0;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:radial-gradient(1100px 600px at 10% -20%,#213a86,transparent 50%),radial-gradient(900px 500px at 100% -20%,#5e2f7f,transparent 45%),var(--bg)}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px 14px calc(96px + env(safe-area-inset-bottom,0px))}
+    .card{background:linear-gradient(180deg,#17295a,#101a38);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 14px 36px rgba(0,0,0,.28)}
+    h1{margin:0 0 6px;font-size:28px}.sub{margin:0 0 12px;color:var(--muted)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .badge{background:rgba(124,227,139,.18);color:var(--ok);padding:4px 10px;border-radius:999px;font-weight:700;font-size:12px}
+    .progress{position:sticky;top:8px;z-index:5;background:rgba(10,16,34,.9);backdrop-filter:blur(5px);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px}
+    .progress .head{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+    .bar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--sec),var(--ok));transition:width .25s}
+    .q{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;background:rgba(255,255,255,.02)}
+    .q.unanswered{border-color:rgba(255,160,160,.6)} .q p{margin:0 0 10px;line-height:1.5}
+    .scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.opt{min-height:44px;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+    .opt input{accent-color:var(--sec);transform:scale(1.1)} .opt:has(input:checked){background:rgba(110,168,254,.18);border-color:rgba(110,168,254,.9)}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.btn{border:0;border-radius:10px;min-height:44px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,var(--pri),#ff7e3d);color:#230f00}.btn.ghost{background:rgba(255,255,255,.1);color:var(--text)} .btn:disabled{opacity:.55;cursor:not-allowed}
+    .result{display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:14px;background:rgba(255,255,255,.02)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{border:1px solid var(--line);border-radius:10px;padding:10px}.metric .bar{margin-top:6px}
+    .radar{border:1px solid var(--line);border-radius:12px;padding:10px;margin:12px 0}.radar canvas{width:100%;max-width:420px;aspect-ratio:1/1;display:block;margin:0 auto}
+    .hero-sec{margin-top:10px}.hero-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+    .hero{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02)}.hero img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.hero .n{padding:6px;font-size:12px;text-align:center}
+    .small{color:var(--muted);font-size:13px}
+    .mobile-actions{display:none}
+    @media(max-width:760px){h1{font-size:24px}.grid{grid-template-columns:1fr}.hero-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:640px){.btns{display:none}.mobile-actions{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:20;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:rgba(10,16,34,.95);backdrop-filter:blur(8px)}.hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row"><h1>守望先锋英雄匹配问卷</h1></div>
+      <p class="sub">真实英雄数据 + 多维评分引擎。输出：定位、主练/副练英雄池、训练建议、分享海报。</p>
+
+      <div class="progress">
+        <div class="head"><span id="progressText">已完成 0 / 18</span><span id="progressPercent">0%</span></div>
+        <div class="bar"><i id="progressBar"></i></div>
+      </div>
+
+      <form id="quiz"></form>
+
+      <div class="btns">
+        <button class="btn primary" id="calcBtn" type="button">生成结果</button>
+        <button class="btn ghost" id="copyBtn" type="button" disabled>复制结果</button>
+        <button class="btn ghost" id="posterBtn" type="button" disabled>下载海报(3:4)</button>
+        <button class="btn ghost" id="shareBtn" type="button" disabled>系统分享</button>
+        <button class="btn ghost" id="resetBtn" type="button">重置</button>
+      </div>
+
+      <section class="result" id="resultBox">
+        <div class="row"><span class="badge" id="typeTag"></span><h2 id="title" style="margin:0"></h2></div>
+        <p id="desc"></p>
+        <div class="grid" id="metrics"></div>
+
+        <div class="radar"><h3 style="margin:0 0 8px">风格雷达图</h3><canvas id="radar" width="420" height="420"></canvas></div>
+
+        <div class="hero-sec"><h3>主练英雄池</h3><div class="hero-grid" id="heroMain"></div></div>
+        <div class="hero-sec"><h3>副练英雄池</h3><div class="hero-grid" id="heroSub"></div></div>
+
+        <h3>训练建议</h3><ul id="tips"></ul>
+        <p class="small" id="shareText"></p>
+      </section>
+
+      <p class="small">数据源：OverFast API（实时拉取，失败回退本地快照）。</p>
+    </div>
+  </div>
+
+  <div class="mobile-actions">
+    <button class="btn primary" id="calcBtnM" type="button">生成</button>
+    <button class="btn ghost" id="posterBtnM" type="button" disabled>海报</button>
+    <button class="btn ghost" id="copyBtnM" type="button" disabled>复制</button>
+  </div>
+
+<script>
+const QUESTIONS = [
+  {t:'打团时，我大多数时候都能把枪打在点上。', w:{aim:2,dps:1}},
+  {t:'我打中远距离时，通常能找到舒服的位置持续输出。', w:{aim:1.3,macro:1.2,dps:0.7}},
+  {t:'我会主动找机会绕后，给对面后排压力。', w:{mobility:2,aggr:1.4,dps:1}},
+  {t:'团战一乱起来，我也能大概判断现在该上还是该退。', w:{macro:1.8,tank:0.6,support:0.6}},
+  {t:'我不排斥当第一个吃技能的人，帮队友把空间打出来。', w:{team:1.4,tank:1.8,survive:1}},
+  {t:'比起自己秀，我更有成就感的是把队友保活、保舒服。', w:{team:2,support:1.8}},
+  {t:'关键技能我一般会捏一手，等对面交大再反打。', w:{macro:1.3,support:1.2,survive:1.2}},
+  {t:'我的习惯是先找机会打一波爆发，而不是一直慢慢磨。', w:{aggr:1.8,dps:0.8,tank:0.4}},
+  {t:'我整体偏稳，没把握的时候不会硬冲。', w:{survive:1.8,team:1,aggr:-1}},
+  {t:'我会尽量跟队友同节奏推进，不太喜欢单走。', w:{team:1.8,tank:0.8,support:0.6}},
+  {t:'我输出的时候，也会顺手看一眼队友状态。', w:{team:1.2,support:1.1,aim:0.8}},
+  {t:'换地图或换阵容后，我通常能比较快调整打法。', w:{macro:1.6,flex:1.4}},
+  {t:'逆风时我更愿意先稳住，不会越急越冲。', w:{survive:1.5,macro:1.2}},
+  {t:'需要补位时，我愿意为了赢去换英雄。', w:{team:1.4,flex:2}},
+  {t:'我挺喜欢在正面顶住压力，帮队伍把阵线往前推。', w:{tank:1.6,survive:1.4,aggr:0.7}},
+  {t:'局面紧张的时候，我手上也不容易变形。', w:{aim:1.2,survive:1}},
+  {t:'我经常会从侧面切入，找对面注意力盲区。', w:{mobility:1.6,aggr:1.1,dps:0.7}},
+  {t:'我更在意这波团能不能赢，而不是自己数据好不好看。', w:{team:1.7,support:1.1,aggr:-0.6}}
+];
+
+// style pools (真实英雄 key；会与实时数据求交集)
+const POOLS = {
+  dps: {
+    flanker:['tracer','genji','sombra','venture','reaper'],
+    poke:['ashe','widowmaker','cassidy','hanzo','sojourn','soldier-76'],
+    brawl:['reaper','mei','junkrat','symmetra','bastion'],
+    flex:['soldier-76','sojourn','cassidy','echo','pharah']
+  },
+  tank: {
+    dive:['winston','dva','doomfist','wrecking-ball'],
+    poke:['sigma','orisa','ramattra'],
+    brawl:['reinhardt','zarya','junker-queen','mauga','roadhog'],
+    flex:['ramattra','orisa','winston','reinhardt']
+  },
+  support: {
+    dive:['kiriko','lucio','moira','juno'],
+    poke:['ana','baptiste','zenyatta','illari'],
+    brawl:['brigitte','lucio','moira','mercy'],
+    flex:['ana','kiriko','baptiste','lifeweaver','mercy']
+  }
+};
+
+const HERO_ZH = {
+  'ana':'安娜','anran':'安然','ashe':'艾什','baptiste':'巴蒂斯特','bastion':'堡垒','brigitte':'布丽吉塔','cassidy':'卡西迪','domina':'多米娜','doomfist':'末日铁拳','dva':'D.Va','echo':'回声','emre':'埃姆雷','freja':'芙蕾雅','genji':'源氏','hanzo':'半藏','hazard':'哈泽德','illari':'伊拉锐','jetpack-cat':'喷气猫','junker-queen':'渣客女王','junkrat':'狂鼠','juno':'朱诺','kiriko':'雾子','lifeweaver':'生命之梭','lucio':'卢西奥','mauga':'毛加','mei':'小美','mercy':'天使','moira':'莫伊拉','orisa':'奥丽莎','pharah':'法老之鹰','ramattra':'拉玛刹','reaper':'死神','reinhardt':'莱因哈特','roadhog':'路霸','sigma':'西格玛','sojourn':'索杰恩','soldier-76':'士兵：76','sombra':'黑影','symmetra':'秩序之光','torbjorn':'托比昂','tracer':'猎空','vendetta':'维德塔','venture':'探奇','widowmaker':'黑百合','winston':'温斯顿','wrecking-ball':'破坏球','wuyang':'无漾','zarya':'查莉娅','zenyatta':'禅雅塔'
+};
+
+let HEROES = [];
+let heroByKey = {};
+let latest = null;
+
+const quiz = document.getElementById('quiz');
+QUESTIONS.forEach((q,i)=>{
+  const n=i+1;
+  const div=document.createElement('div');
+  div.className='q';
+  div.innerHTML=`<p><b>${n}.</b> ${q.t}</p><div class="scale">${[1,2,3,4,5].map(v=>`<label class="opt"><input type="radio" name="q${n}" value="${v}">${v}</label>`).join('')}</div>`;
+  quiz.appendChild(div);
+});
+
+function v(n){return Number((document.querySelector(`input[name=q${n}]:checked`)||{}).value||0)}
+function answered(){return Array.from({length:QUESTIONS.length},(_,i)=>v(i+1)).filter(Boolean).length}
+function allAnswered(){return answered()===QUESTIONS.length}
+
+function updateProgress(){
+  const done=answered(), pct=Math.round(done/QUESTIONS.length*100);
+  document.getElementById('progressText').textContent=`已完成 ${done} / ${QUESTIONS.length}`;
+  document.getElementById('progressPercent').textContent=`${pct}%`;
+  document.getElementById('progressBar').style.width=`${pct}%`;
+}
+function markUnanswered(){document.querySelectorAll('.q').forEach((el,i)=>el.classList.toggle('unanswered',!v(i+1)))}
+function focusUnanswered(){const e=[...document.querySelectorAll('.q')].find((_,i)=>!v(i+1)); if(e)e.scrollIntoView({behavior:'smooth',block:'center'})}
+
+function compute(){
+  const dims={aim:0,mobility:0,macro:0,team:0,aggr:0,survive:0,flex:0,dps:0,tank:0,support:0};
+  QUESTIONS.forEach((q,i)=>{
+    const x=v(i+1)-3; // -2..+2
+    for(const [k,w] of Object.entries(q.w)) dims[k]+=x*w;
+  });
+  // role synthesis
+  const roleScore={
+    dps: dims.dps + 1.2*dims.aim + 1.0*dims.aggr + 0.9*dims.mobility + 0.3*dims.macro - 0.1*dims.team,
+    tank: dims.tank + 1.2*dims.team + 1.1*dims.macro + 1.0*dims.survive + 0.5*dims.aggr - 0.2*dims.aim,
+    support: dims.support + 1.3*dims.team + 0.9*dims.macro + 0.8*dims.survive + 0.5*dims.aim - 0.1*dims.aggr
+  };
+  const roleEntries=Object.entries(roleScore).sort((a,b)=>b[1]-a[1]);
+  const mainRole=roleEntries[0][0], subRole=roleEntries[1][0];
+
+  // style
+  let style='flex';
+  if(dims.mobility>3 && dims.aggr>2) style='flanker';
+  else if(dims.aim>3 && dims.macro>2) style='poke';
+  else if(dims.survive>2 && dims.team>2) style='brawl';
+
+  return {dims, roleScore, mainRole, subRole, style};
+}
+
+function normalizeRadar(c){
+  const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
+  const map=x=>clamp((x+8)/16,0,1); // rough normalization
+  return [map(c.dims.aim),map(c.dims.team),map(c.dims.macro),map(c.dims.mobility),map(c.dims.survive)];
+}
+
+function pickHeroes(role,style,count=4){
+  const rolePool=POOLS[role]||{};
+  const bucket = rolePool[style] || rolePool.flex || [];
+  const existing = bucket.filter(k=>heroByKey[k]);
+  if(existing.length>=count) return existing.slice(0,count);
+  const allRole = HEROES.filter(h=>h.role===role).map(h=>h.key);
+  const extras = allRole.filter(k=>!existing.includes(k)).slice(0, count-existing.length);
+  return [...existing,...extras];
+}
+
+function roleLabel(r){return r==='dps'?'输出位':r==='tank'?'坦克位':'辅助位'}
+function styleLabel(s){return s==='flanker'?'切后排/高机动':s==='poke'?'拉枪线/消耗':s==='brawl'?'正面缠斗/压空间':'全能平衡'}
+
+function metricHTML(name,score,max){
+  const n={dps:'输出倾向',tank:'坦克倾向',support:'辅助倾向'}[name];
+  const pct=Math.round((score/max)*100);
+  return `<div class="metric"><b>${n}：${score.toFixed(1)}</b><div class="bar"><i style="width:${Math.max(8,Math.min(100,pct))}%"></i></div></div>`;
+}
+
+function drawRadar(vals){
+  const c=document.getElementById('radar'); const ctx=c.getContext('2d');
+  const dpr=Math.max(1,window.devicePixelRatio||1); const css=c.getBoundingClientRect().width||420;
+  c.width=css*dpr; c.height=css*dpr; ctx.scale(dpr,dpr);
+  const w=css,h=css,cx=w/2,cy=h/2,r=w*0.34,n=5;
+  const labels=['枪法','团队','意识','机动','生存'];
+  ctx.clearRect(0,0,w,h); ctx.strokeStyle='rgba(255,255,255,.16)';
+  for(let l=1;l<=4;l++){const rr=r*l/4;ctx.beginPath();for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.stroke()}
+  for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();ctx.fillStyle='#d6e2ff';ctx.font='13px Inter';ctx.textAlign='center';ctx.fillText(labels[i],cx+Math.cos(a)*(r+18),cy+Math.sin(a)*(r+18))}
+  ctx.beginPath();for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;const rr=r*vals[i];const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.fillStyle='rgba(255,158,74,.30)';ctx.strokeStyle='rgba(110,168,254,.95)';ctx.lineWidth=2;ctx.fill();ctx.stroke();
+}
+
+function heroDisplayName(key){
+  const h = heroByKey[key];
+  return HERO_ZH[key] || h?.name || key;
+}
+
+function heroPortraitPath(key){
+  return `assets/heroes-real/${key}.png`;
+}
+
+function renderHeroGrid(el, keys){
+  document.getElementById(el).innerHTML = keys.map(k=>{
+    const n = heroDisplayName(k);
+    return `<div class="hero"><img src="${heroPortraitPath(k)}" alt="${n}" loading="lazy"><div class="n">${n}</div></div>`;
+  }).join('');
+}
+
+function render(){
+  if(!allAnswered()){markUnanswered();focusUnanswered();return alert('还有未作答题目，先完成所有问题。')}
+  const c=compute();
+  const main=pickHeroes(c.mainRole,c.style,4);
+  const sub=pickHeroes(c.subRole,'flex',4);
+  latest={c,main,sub};
+
+  document.getElementById('resultBox').style.display='block';
+  document.getElementById('typeTag').textContent=`主定位：${roleLabel(c.mainRole)}`;
+  document.getElementById('title').textContent=`副定位：${roleLabel(c.subRole)} ｜ 风格：${styleLabel(c.style)}`;
+  document.getElementById('desc').textContent='结果由18题多维评分计算，不是固定模板；不同作答会得到不同定位与英雄池。';
+  document.getElementById('metrics').innerHTML=[
+    metricHTML('dps',c.roleScore.dps,20),metricHTML('tank',c.roleScore.tank,20),metricHTML('support',c.roleScore.support,20)
+  ].join('');
+
+  drawRadar(normalizeRadar(c));
+  renderHeroGrid('heroMain', main);
+  renderHeroGrid('heroSub', sub);
+
+  const tips=[];
+  if(c.style==='flanker') tips.push('先骗技能再切后排，收不掉立即撤离，保证循环骚扰。');
+  if(c.mainRole==='tank') tips.push('开团前确认队友视角，进退口令要明确。');
+  if(c.mainRole==='support') tips.push('关键保命技能留给敌方大招窗口，不要先手乱交。');
+  if(c.mainRole==='dps') tips.push('优先稳定输出位，先打到再打死，减少无效拉扯。');
+  tips.push('每周固定复盘2局，记录“死亡原因”和“技能空窗期”。');
+  document.getElementById('tips').innerHTML=tips.map(t=>`<li>${t}</li>`).join('');
+
+  const mainNames=main.map(k=>heroDisplayName(k)).join(' / ');
+  const subNames=sub.map(k=>heroDisplayName(k)).join(' / ');
+  const txt=`我的守望匹配：主定位${roleLabel(c.mainRole)}，副定位${roleLabel(c.subRole)}，风格${styleLabel(c.style)}。\n主练：${mainNames}\n副练：${subNames}`;
+  document.getElementById('shareText').textContent=txt;
+
+  ['copyBtn','copyBtnM','posterBtn','posterBtnM','shareBtn'].forEach(id=>document.getElementById(id).disabled=false);
+}
+
+async function copyText(){
+  if(!latest) return; const t=document.getElementById('shareText').textContent;
+  try{await navigator.clipboard.writeText(t);alert('结果文案已复制');}catch{alert('复制失败，请手动复制。')}
+}
+
+function wrapText(ctx,text,x,y,maxWidth,lineHeight){
+  let line=''; let yy=y;
+  for(const ch of [...text]){const test=line+ch;if(ctx.measureText(test).width>maxWidth && line){ctx.fillText(line,x,yy);line=ch;yy+=lineHeight}else line=test}
+  if(line) ctx.fillText(line,x,yy)
+}
+
+function loadImage(src){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=reject;
+    img.src=src;
+  });
+}
+
+async function posterCanvas(){
+  if(!latest) return null;
+  const {c,main,sub}=latest;
+  const canvas=document.createElement('canvas'); canvas.width=1080; canvas.height=1440; const ctx=canvas.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,1080,1440); g.addColorStop(0,'#1b2f73'); g.addColorStop(.6,'#121f48'); g.addColorStop(1,'#0a1022');
+  ctx.fillStyle=g; ctx.fillRect(0,0,1080,1440);
+  ctx.fillStyle='rgba(255,255,255,.10)'; ctx.fillRect(56,56,968,1328);
+  ctx.fillStyle='#eef3ff'; ctx.font='700 54px Inter'; ctx.fillText('守望英雄匹配报告',90,142);
+  ctx.fillStyle='#7ce38b'; ctx.font='700 34px Inter'; ctx.fillText(`主定位：${roleLabel(c.mainRole)} ｜ 风格：${styleLabel(c.style)}`,90,198);
+
+  const vals=normalizeRadar(c), labels=['枪法','团队','意识','机动','生存']; const n=5, cx=300, cy=470, r=165;
+  ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=2;
+  for(let l=1;l<=4;l++){const rr=r*l/4;ctx.beginPath();for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.stroke()}
+  ctx.fillStyle='#d6e2ff'; ctx.font='500 22px Inter';
+  for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;ctx.textAlign='center';ctx.fillText(labels[i],cx+Math.cos(a)*(r+28),cy+Math.sin(a)*(r+28))}
+  ctx.beginPath();for(let i=0;i<n;i++){const a=-Math.PI/2+i*2*Math.PI/n;const rr=r*vals[i];const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.fillStyle='rgba(255,158,74,.30)';ctx.strokeStyle='#6ea8fe';ctx.lineWidth=5;ctx.fill();ctx.stroke();
+
+  ctx.textAlign='left'; ctx.fillStyle='#eef3ff'; ctx.font='700 34px Inter';
+  ctx.fillText('主练英雄',560,340);
+  ctx.fillText('副练英雄',560,520);
+
+  // Draw hero portraits on poster
+  const drawRow = async (keys, y) => {
+    for(let i=0;i<keys.length;i++){
+      const k=keys[i];
+      const x=560 + i*120;
+      const img=await loadImage(heroPortraitPath(k));
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(x, y, 96, 96, 14); ctx.clip();
+      ctx.drawImage(img, x, y, 96, 96);
+      ctx.restore();
+      ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.strokeRect(x, y, 96, 96);
+      ctx.fillStyle='#d9e4ff'; ctx.font='500 16px Inter'; ctx.textAlign='center';
+      ctx.fillText(heroDisplayName(k), x+48, y+116);
+    }
+  };
+  await drawRow(main, 360);
+  await drawRow(sub, 540);
+
+  ctx.textAlign='left';
+  ctx.fillStyle='#eef3ff'; ctx.font='700 32px Inter'; ctx.fillText('一句建议',90,760); ctx.font='500 28px Inter'; ctx.fillStyle='#d9e4ff';
+  const tip = c.mainRole==='tank'?'先带节奏再吃资源，进退口令清晰。':c.mainRole==='support'?'关键技能留反手，保核心输出。':'先打到再打死，保持存活输出。';
+  wrapText(ctx,`• ${tip}`,90,808,900,40);
+
+  ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(90,1240,900,90);
+  ctx.fillStyle='#eef3ff'; ctx.font='600 27px Inter'; ctx.fillText('来测你的守望本命英雄：kazecreator.github.io/ow-hero-quiz/',108,1295);
+  return canvas;
+}
+
+async function downloadPoster(){const c=await posterCanvas(); if(!c) return; const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download=`ow-quiz-${Date.now()}.png`; a.click();}
+async function sharePoster(){
+  const c=await posterCanvas(); if(!c) return;
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  const file=new File([blob],'ow-quiz-result.png',{type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'守望英雄匹配结果',text:'我测了我的守望本命英雄，来试试！'});}else{downloadPoster();alert('当前浏览器不支持文件分享，已为你下载海报。');}
+}
+
+function resetAll(){document.querySelectorAll('input[type=radio]').forEach(i=>i.checked=false);document.getElementById('resultBox').style.display='none';latest=null;['copyBtn','copyBtnM','posterBtn','posterBtnM','shareBtn'].forEach(id=>document.getElementById(id).disabled=true);updateProgress();markUnanswered();window.scrollTo({top:0,behavior:'smooth'})}
+
+async function loadHeroes(){
+  const live='https://overfast-api.tekrop.fr/heroes';
+  try{
+    const res=await fetch(live,{cache:'no-store'}); const all=await res.json();
+    HEROES=all.filter(h=>h.gamemodes?.includes('quickplay')).map(h=>({key:h.key,name:h.name,role:h.role}));
+  }catch{
+    const res=await fetch('./data/heroes-live.json'); const j=await res.json(); HEROES=j.heroes.map(h=>({key:h.key,name:h.name,role:h.role}));
+  }
+  heroByKey={}; HEROES.forEach(h=>heroByKey[h.key]=h);
+}
+
+quiz.addEventListener('change',()=>{updateProgress();markUnanswered()});
+document.getElementById('calcBtn').addEventListener('click',render);
+document.getElementById('calcBtnM').addEventListener('click',render);
+document.getElementById('copyBtn').addEventListener('click',copyText);
+document.getElementById('copyBtnM').addEventListener('click',copyText);
+document.getElementById('posterBtn').addEventListener('click',downloadPoster);
+document.getElementById('posterBtnM').addEventListener('click',downloadPoster);
+document.getElementById('shareBtn').addEventListener('click',sharePoster);
+document.getElementById('resetBtn').addEventListener('click',resetAll);
+
+loadHeroes().then(()=>{updateProgress();markUnanswered();});
+</script>
+</body>
+</html>
